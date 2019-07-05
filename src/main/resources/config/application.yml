@@ -1,0 +1,15 @@
+# ===================================================================
+# Spring Boot configuration.
+#
+# Full reference is available at:
+# http://docs.spring.io/spring-boot/docs/current/reference/html/common-application-properties.html
+# ===================================================================
+
+spring:
+  application:
+    name: asynccosmos
+
+application:
+  cosmosdb:
+    accountHost: https://judubois-cosmos.documents.azure.com:443/
+    accountKey: Yi78NyaLjzrEQxnh5jjeF1iqUJ45HgRJ7bNOT7PyUClUTbJS1z1vB8jS3EvYlzKMsiqjUDrU09PO0AOXYY6fyw==
