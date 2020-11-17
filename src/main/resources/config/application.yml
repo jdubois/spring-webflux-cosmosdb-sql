@@ -11,5 +11,7 @@ spring:
 
 application:
   cosmosdb:
-    accountHost: https://judubois-cosmos.documents.azure.com:443/
-    accountKey: Yi78NyaLjzrEQxnh5jjeF1iqUJ45HgRJ7bNOT7PyUClUTbJS1z1vB8jS3EvYlzKMsiqjUDrU09PO0AOXYY6fyw==
+    accountHost: ${EndpointUrl}
+    accountKey: ${PrimaryKey}
+    databaseName: ${DatabaseName}
+    containerName: ${ContainerName}

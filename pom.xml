@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.2.0.M4</version>
+		<version>2.3.6.RELEASE</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>io.github.jdubois.asynccosmos</groupId>
@@ -24,9 +24,9 @@
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
         <dependency>
-            <groupId>com.microsoft.azure</groupId>
+            <groupId>com.azure</groupId>
             <artifactId>azure-cosmos</artifactId>
-            <version>3.0.0</version>
+            <version>4.8.0</version>
         </dependency>
 
 		<dependency>
@@ -61,17 +61,17 @@
                 <groupId>com.microsoft.azure</groupId>
                 <artifactId>azure-webapp-maven-plugin</artifactId>
                 <!-- check Maven Central for the latest version -->
-                <version>1.6.0</version>
+                <version>2.3.5</version>
                 <configuration>
                     <schemaVersion>v2</schemaVersion>
-                    <resourceGroup>judubois</resourceGroup>
-                    <appName>judubois-demo</appName>
+                    <resourceGroup>webflux-cosmos</resourceGroup>
+                    <appName>webflux-cosmos-demo</appName>
                     <runtime>
                         <os>Linux</os>
                         <javaVersion>java11</javaVersion>
                     </runtime>
                     <pricingTier>P1V2</pricingTier>
-                    <region>France Central</region>
+                    <region>US East</region>
                     <deployment>
                         <resources>
                             <resource>

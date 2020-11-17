@@ -1,6 +1,12 @@
 package io.github.jdubois.asynccosmos.repository;
 
-import com.azure.data.cosmos.*;
+import com.azure.cosmos.*;
+import com.azure.cosmos.models.CosmosContainerProperties;
+import com.azure.cosmos.models.CosmosQueryRequestOptions;
+import com.azure.cosmos.models.IndexingPolicy;
+import com.azure.cosmos.models.PartitionKey;
+import com.azure.cosmos.models.ThroughputProperties;
+
 import io.github.jdubois.asynccosmos.domain.Project;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,14 +18,12 @@ import reactor.core.scheduler.Schedulers;
 
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 @Repository
 public class ProjectRepository {
-
-    private final String DATABASE_NAME = "AsyncCosmos";
-    private final String CONTAINER_NAME = "Project";
 
     private final Logger log = LoggerFactory.getLogger(ProjectRepository.class);
 
@@ -29,44 +33,54 @@ public class ProjectRepository {
     @Value("${application.cosmosdb.accountKey}")
     private String accountKey;
 
-    private CosmosClient client;
-    private CosmosDatabase database;
-    private CosmosContainer container;
+    @Value("${application.cosmosdb.databaseName}")
+    private String databaseName;
+
+    @Value("${application.cosmosdb.containerName}")
+    private String containerName;
+
+    private CosmosAsyncClient client;
+    private CosmosAsyncDatabase database;
+    private CosmosAsyncContainer container;
 
     @PostConstruct
     public void init() {
         log.info("Configuring CosmosDB connection");
 
-        ConnectionPolicy connectionPolicy = new ConnectionPolicy();
-        connectionPolicy.connectionMode(ConnectionMode.DIRECT);
+        //DirectConnectionConfig directConnectionConfig = DirectConnectionConfig.getDefaultConfig();
+        GatewayConnectionConfig gatewayConnectionConfig = GatewayConnectionConfig.getDefaultConfig();
 
-        client = CosmosClient.builder()
+        client = new CosmosClientBuilder()
             .endpoint(accountHost)
             .key(accountKey)
-            .connectionPolicy(connectionPolicy)
-            .build();
+            .preferredRegions(Collections.singletonList("East US 2"))
+            .consistencyLevel(ConsistencyLevel.SESSION)
+            .contentResponseOnWriteEnabled(true)
+            .gatewayMode(gatewayConnectionConfig)
+            .buildAsyncClient();
 
         // Create the database if it does not exist yet
-        client.createDatabaseIfNotExists(DATABASE_NAME)
-            .doOnSuccess(cosmosDatabaseResponse -> log.info("Database: " + cosmosDatabaseResponse.database().id()))
+        client.createDatabaseIfNotExists(databaseName)
+            .doOnSuccess(cosmosDatabaseResponse -> log.info("Database: " + cosmosDatabaseResponse.getProperties().getId()))
             .doOnError(throwable -> log.error(throwable.getMessage()))
             .publishOn(Schedulers.elastic())
             .block();
 
-        database = client.getDatabase(DATABASE_NAME);
+        database = client.getDatabase(databaseName);
 
         // Create the container if it does not exist yet
-        CosmosContainerProperties containerSettings = new CosmosContainerProperties(CONTAINER_NAME, "/id");
+        CosmosContainerProperties containerProperties = new CosmosContainerProperties(containerName, "/id");
+        ThroughputProperties throughputProperties = ThroughputProperties.createManualThroughput(400);
         IndexingPolicy indexingPolicy = new IndexingPolicy();
-        indexingPolicy.automatic(false);
-        containerSettings.indexingPolicy(indexingPolicy);
-        database.createContainerIfNotExists(containerSettings, 400)
-            .doOnSuccess(cosmosContainerResponse -> log.info("Container: " + cosmosContainerResponse.container().id()))
+        indexingPolicy.setAutomatic(false);
+        containerProperties.setIndexingPolicy(indexingPolicy);
+        database.createContainerIfNotExists(containerProperties, throughputProperties)
+            .doOnSuccess(cosmosContainerResponse -> log.info("Container: " + cosmosContainerResponse.getProperties().getId()))
             .doOnError(throwable -> log.error(throwable.getMessage()))
             .publishOn(Schedulers.elastic())
             .block();
 
-        container = database.getContainer(CONTAINER_NAME);
+        container = database.getContainer(containerName);
 
     }
 
@@ -75,8 +89,8 @@ public class ProjectRepository {
         return container.createItem(project)
             .map(i -> {
                 Project savedProject = new Project();
-                savedProject.setId(i.item().id());
-                savedProject.setName(i.properties().getString("name"));
+                savedProject.setId(i.getItem().getId());
+                savedProject.setName(i.getItem().getName());
                 return savedProject;
             });
     }
@@ -85,23 +99,23 @@ public class ProjectRepository {
         return container.upsertItem(project)
             .map(i -> {
                 Project savedProject = new Project();
-                savedProject.setId(i.item().id());
-                savedProject.setName(i.properties().getString("name"));
+                savedProject.setId(i.getItem().getId());
+                savedProject.setName(i.getItem().getName());
                 return savedProject;
             });
     }
 
     public Flux<List<Project>> findAll() {
-        FeedOptions options = new FeedOptions();
-        options.enableCrossPartitionQuery(true);
+        CosmosQueryRequestOptions options = new CosmosQueryRequestOptions();
 
-        return container.queryItems("SELECT TOP 20 * FROM Project p", options)
+        return container.queryItems("SELECT TOP 100000 * FROM c", options, Project.class)
+            .byPage(100)
             .map(i -> {
                 List<Project> results = new ArrayList<>();
-                i.results().forEach(props -> {
+                i.getResults().forEach(props -> {
                     Project project = new Project();
-                    project.setId(props.id());
-                    project.setName(props.getString("name"));
+                    project.setId(props.getId());
+                    project.setName(props.getName());
                     results.add(project);
                 });
                 return results;
@@ -109,15 +123,15 @@ public class ProjectRepository {
     }
 
     public Mono<Project> findById(String id) {
-        return container.getItem(id, id).read().map(i -> {
+        return container.readItem(id, new PartitionKey(id), Project.class).map(i -> {
             Project project = new Project();
-            project.setId(i.item().id());
-            project.setName(i.properties().getString("name"));
+            project.setId(i.getItem().getId());
+            project.setName(i.getItem().getName());
             return project;
         });
     }
 
     public void deleteById(String id) {
-        container.getItem(id, id).delete().subscribe();
+        container.deleteItem(id, new PartitionKey(id)).subscribe();
     }
 }

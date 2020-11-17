@@ -143,3 +143,8 @@ Desktop.ini
 # ESLint
 ######################
 .eslintcache
+
+######################
+# Dependency_tree
+######################
+dependency_tree.txt
